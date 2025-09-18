@@ -42,7 +42,7 @@ def build_codec_server() -> web.Application:
         return resp
 
     # Build app
-    codec = ClaimCheckCodec()
+    codec = ClaimCheckCodec()  # Uses default compression=True
     app = web.Application()
     app.add_routes(
         [
