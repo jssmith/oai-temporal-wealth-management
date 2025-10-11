@@ -149,18 +149,18 @@ temporal server start-dev
 ### Start the Worker
 
 ```bash
-uv run python -m src.temporal_supervisor.run_worker
+uv run python -m src.temporal.run_worker
 ```
 
 ### Start the API
 
 ```bash
-uv run uvicorn api.main:app --reload --app-dir src/temporal_supervisor/api
+uv run python -m src.temporal.api
 ```
 ### Start the UX
 
 ```bash
-cd src/temporal_supervisor/frontend
+cd src/frontend
 npm start
 ```
 
@@ -169,13 +169,13 @@ A new browser window opens where you can interact with the application.
 If you are opening a new investment account, in another terminal
 ### Send the Compliance Reviewed Signal 
 ```bash
-cd src/temporal_supervisor
+cd src/temporal
 ./localsendcomplianceapproval.sh <Child Workflow ID>
 ```
 
 ## Running the Demo in Temporal Cloud
 
-Copy the setcloudenv.example to setcloudenv.sh in the src/temporal_supervisor folder.
+Copy the setcloudenv.example to setcloudenv.sh in the src/temporal folder.
 
 ```bash
 cp setcloundenv.sh setcloudenv.sh
@@ -191,27 +191,27 @@ export TEMPORAL_KEY_PATH="/path/to/key.key"
 
 ### Start the Worker
 ```bash
-cd src/temporal_supervisor
+cd src/temporal
 ./startcloudworker.sh
 ```
 
 ### Start the API
 
 ```bash
-cd src/temporal_supervisor/api
+cd src/temporal
 ./startcloudapi.sh
 ```
 ### Start the UX
 
 ```bash
-cd src/temporal_supervisor/frontend
+cd src/frontend
 npm start
 ```
 
 If you are opening a new investment account, in another terminal
 ### Send the Compliance Reviewed Signal 
 ```bash
-cd src/temporal_supervisor
+cd src/temporal
 ./cloudsendcomplianceapproval.sh <Child Workflow ID>
 ```
 

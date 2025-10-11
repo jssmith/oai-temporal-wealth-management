@@ -1,7 +1,5 @@
 __pycache__
-/setoaikey.sh
-/setcloudenv.sh
-/setclaimcheck.sh
+.env
 .venv
 .idea
 .DS_Store

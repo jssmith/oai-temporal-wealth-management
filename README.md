@@ -5,8 +5,8 @@ wrap the agentic flow with Temporal.
 
 ![](images/architecture.png)
 
-The vanilla OpenAI Agents SDK version of this example is located [here](src/oai_supervisor/README.md).
-The Temporal version of this example is located [here](src/temporal_supervisor/README.md).
+The basic OpenAI Agents SDK version of this example is located [here](src/basic/README.md).
+The Temporal version of this example is located [here](src/temporal/README.md).
 
 Scenarios currently implemented include
 * Add Beneficiary - add a new beneficiary to your account
@@ -20,30 +20,43 @@ You can run through the scenarios with the Temporal version using a [Web Applica
 
 ## Prerequisites
 
-* [Poetry](https://python-poetry.org/docs/) - Python Dependency Management
-* [OpenAI API Key] (https://platform.openai.com/api-keys) - Your key to accessing OpenAI's LLM
+* [UV](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
+* [OpenAI API Key](https://platform.openai.com/api-keys) - Your key to accessing OpenAI's LLM
 * [Temporal CLI](https://docs.temporal.io/cli#install) - Local Temporal service
 * [Redis](https://redis.io/downloads/) - Stores conversation history and real-time status updates
 
 ## Set up Python Environment
 ```bash
-poetry install
+uv sync
 ```
 
-## Set up your OpenAI API Key
- 
+## Set up your Environment Variables
+
+Create a `.env` file in the project root with your configuration:
+
 ```bash
-cp setoaikey.example setoaikey.sh
-chmod +x setoaikey.sh
+cp .env.example .env
 ```
 
-Now edit the setoaikey.sh file and paste in your OpenAI API Key.
-It should look something like this:
+Now edit the `.env` file and configure your environment variables:
 ```text
-export OPENAI_API_KEY=sk-proj-....
+# OpenAI Configuration
+OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+
+# Temporal Configuration (defaults work for local development)
+TEMPORAL_ADDRESS=127.0.0.1:7233
+TEMPORAL_NAMESPACE=default
+TEMPORAL_CERT_PATH=
+TEMPORAL_KEY_PATH=
+TEMPORAL_TASK_QUEUE=Supervisor
+
+# Redis/Claim Check Configuration
+USE_CLAIM_CHECK=true
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ## Getting Started
 
-See the OpenAI Agents SDK Version [here](src/oai_supervisor/README.md)
-And the Temporal version of this example is located [here](src/temporal_supervisor/README.md)
+See the basic OpenAI Agents SDK Version [here](src/basic/README.md)
+And the Temporal version of this example is located [here](src/temporal/README.md)

@@ -1,12 +1,6 @@
 {
     "123": [
         {
-            "beneficiary_id": "b-1b011a72",
-            "first_name": "John",
-            "last_name": "Doe",
-            "relationship": "son"
-        },
-        {
             "beneficiary_id": "b-3bc09dd2",
             "first_name": "Jane",
             "last_name": "Doe",
@@ -17,6 +11,12 @@
             "first_name": "Joan",
             "last_name": "Doe",
             "relationship": "spouse"
+        },
+        {
+            "beneficiary_id": "b-7fbc73f8",
+            "first_name": "James",
+            "last_name": "Doe",
+            "relationship": "brother"
         }
     ],
     "234": [
@@ -37,6 +37,14 @@
             "first_name": "Jessica",
             "last_name": "Smith",
             "relationship": "daughter"
+        }
+    ],
+    "124": [
+        {
+            "beneficiary_id": "b-7181e58b",
+            "first_name": "Monika",
+            "last_name": "Smith",
+            "relationship": "sibling"
         }
     ]
 }
