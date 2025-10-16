@@ -8,16 +8,19 @@ from src.temporal.activities.clients import ClientActivities
 from src.temporal.activities.investments import Investments
 from common.account_context import UpdateAccountOpeningStateInput
 
+
 @dataclass
 class OpenInvestmentAccountInput:
     client_id: str
     account_name: str
     initial_amount: float
 
+
 @dataclass
 class OpenInvestmentAccountOutput:
     account_created: bool = False
-    message : str = None
+    message: str = None
+
 
 @dataclass
 class WealthManagementClient:
@@ -26,7 +29,7 @@ class WealthManagementClient:
     address: str = None
     phone: str = None
     email: str = None
-    marital_status: str= None
+    marital_status: str = None
 
 
 @workflow.defn
@@ -41,16 +44,19 @@ class OpenInvestmentAccountWorkflow:
         self.current_state = "Initializing"
 
     @workflow.run
-    async def run(self, inputs: OpenInvestmentAccountInput) -> OpenInvestmentAccountOutput:
+    async def run(
+        self, inputs: OpenInvestmentAccountInput
+    ) -> OpenInvestmentAccountOutput:
         workflow.logger.info(f"started workflow {inputs}")
         self.inputs = inputs
 
-        workflow.logger.info(f"Retrieving current client information")
+        workflow.logger.info("Retrieving current client information")
         self.client = await workflow.execute_activity(
-                         ClientActivities.get_client,
-                         self.inputs.client_id,
-                         schedule_to_close_timeout=self.sched_to_close_timeout,
-                         retry_policy=ClientActivities.retry_policy)
+            ClientActivities.get_client,
+            self.inputs.client_id,
+            schedule_to_close_timeout=self.sched_to_close_timeout,
+            retry_policy=ClientActivities.retry_policy,
+        )
         workflow.logger.info(f"Client {self.inputs.client_id} details {self.client}")
         self.initialized = True
         await self._set_state("Waiting KYC")
@@ -66,24 +72,32 @@ class OpenInvestmentAccountWorkflow:
         workflow.logger.info("Waiting for compliance review")
         await workflow.wait_condition(lambda: self.compliance_reviewed)
 
-        await self._set_state("Compliance review has been approved. Creating Investment Account")
+        await self._set_state(
+            "Compliance review has been approved. Creating Investment Account"
+        )
 
         # finally, let's create/open the account
         # build the new investment account
-        new_account = InvestmentAccount(self.inputs.client_id, inputs.account_name, inputs.initial_amount)
+        new_account = InvestmentAccount(
+            self.inputs.client_id, inputs.account_name, inputs.initial_amount
+        )
         workflow.logger.info("Creating a new investment account")
         investment_account = await workflow.execute_activity(
             Investments.open_investment,
             args=[new_account],
             schedule_to_close_timeout=self.sched_to_close_timeout,
-            retry_policy=ClientActivities.retry_policy)
+            retry_policy=ClientActivities.retry_policy,
+        )
 
         await self._set_state("Complete")
 
         return_value = OpenInvestmentAccountOutput()
         return_value.account_created = investment_account is not None
-        return_value.message = "investment account created" if investment_account is not None \
-                                    else "An unexpected error occurred creating investment account"
+        return_value.message = (
+            "investment account created"
+            if investment_account is not None
+            else "An unexpected error occurred creating investment account"
+        )
 
         return return_value
 
@@ -94,7 +108,9 @@ class OpenInvestmentAccountWorkflow:
 
     @workflow.update
     async def get_client_details(self) -> WealthManagementClient:
-        workflow.logger.info(f"Returning client information for {self.inputs.client_id}")
+        workflow.logger.info(
+            f"Returning client information for {self.inputs.client_id}"
+        )
         await workflow.wait_condition(lambda: self.initialized)
         return self.client
 
@@ -102,23 +118,24 @@ class OpenInvestmentAccountWorkflow:
     async def update_client_details(self, client: dict) -> str:
         workflow.logger.info(f"Updating client information for {self.inputs.client_id}")
         result = await workflow.execute_activity(
-                    ClientActivities.update_client,
-                    args=[self.inputs.client_id, client],
-                    schedule_to_close_timeout=self.sched_to_close_timeout,
-                    retry_policy=ClientActivities.retry_policy)
+            ClientActivities.update_client,
+            args=[self.inputs.client_id, client],
+            schedule_to_close_timeout=self.sched_to_close_timeout,
+            retry_policy=ClientActivities.retry_policy,
+        )
         self.kyc_verified = True
         return result
 
     @workflow.signal
     async def verify_kyc(self) -> None:
         await workflow.wait_condition(lambda: self.initialized)
-        workflow.logger.info(f"KYC has been verified")
+        workflow.logger.info("KYC has been verified")
         self.kyc_verified = True
 
     @workflow.signal
-    async def compliance_approved(self) ->None:
+    async def compliance_approved(self) -> None:
         await workflow.wait_condition(lambda: self.initialized and self.kyc_verified)
-        workflow.logger.info(f"Compliance has been approved")
+        workflow.logger.info("Compliance has been approved")
         self.compliance_reviewed = True
 
     async def _set_state(self, state: str) -> None:
@@ -126,5 +143,12 @@ class OpenInvestmentAccountWorkflow:
         await self._update_parent_state(state)
 
     async def _update_parent_state(self, state: str) -> None:
-        parent_handle = workflow.get_external_workflow_handle(workflow.info().parent.workflow_id)
-        await parent_handle.signal("update_account_opening_state", UpdateAccountOpeningStateInput(account_name=self.inputs.account_name, state=state))
+        parent_handle = workflow.get_external_workflow_handle(
+            workflow.info().parent.workflow_id
+        )
+        await parent_handle.signal(
+            "update_account_opening_state",
+            UpdateAccountOpeningStateInput(
+                account_name=self.inputs.account_name, state=state
+            ),
+        )

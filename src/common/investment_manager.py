@@ -6,14 +6,16 @@ import uuid
 import argparse
 
 script_dir = os.path.dirname(__file__)
-relative_path = '../../data/investments.json'
-INVESTMENTS_FILE =  os.path.join(script_dir, relative_path)
+relative_path = "../../data/investments.json"
+INVESTMENTS_FILE = os.path.join(script_dir, relative_path)
+
 
 @dataclass
 class InvestmentAccount:
     client_id: str
     name: str
     balance: float
+
 
 class InvestmentManager:
     def __init__(self, json_file=INVESTMENTS_FILE):
@@ -23,22 +25,26 @@ class InvestmentManager:
     def _load_data(self):
         """Loads investment client data from the JSON file."""
         if os.path.exists(self.json_file):
-            with open(self.json_file, 'r') as f:
+            with open(self.json_file, "r") as f:
                 try:
                     self.data = json.load(f)
                     # Ensure the top level is a dictionary
                     if not isinstance(self.data, dict):
-                        print(f"Warning: JSON file '{self.json_file}' has an invalid root structure. Re-initializing.")
+                        print(
+                            f"Warning: JSON file '{self.json_file}' has an invalid root structure. Re-initializing."
+                        )
                         self.data = {}
                 except json.JSONDecodeError:
-                    print(f"Warning: JSON file '{self.json_file}' is corrupted or empty. Initializing with empty data.")
+                    print(
+                        f"Warning: JSON file '{self.json_file}' is corrupted or empty. Initializing with empty data."
+                    )
                     self.data = {}
         else:
             self.data = {}
 
     def _save_data(self):
         """Saves current investment client data to the JSON file."""
-        with open(self.json_file, 'w') as f:
+        with open(self.json_file, "w") as f:
             json.dump(self.data, f, indent=2)
 
     def list_investment_accounts(self, client_id):
@@ -69,7 +75,7 @@ class InvestmentManager:
             self.data[new_account.client_id] = []
 
         # Generate a unique beneficiary ID for this investment account
-        existing_ids = {i['investment_id'] for i in self.data[new_account.client_id]}
+        existing_ids = {i["investment_id"] for i in self.data[new_account.client_id]}
 
         # Use UUID for robust uniqueness, then truncate for a shorter, readable ID
         new_investment_id = f"i-{str(uuid.uuid4())[:8]}"
@@ -79,12 +85,14 @@ class InvestmentManager:
         new_investment_account = {
             "investment_id": new_investment_id,
             "name": new_account.name,
-            "balance": new_account.balance
+            "balance": new_account.balance,
         }
 
         self.data[new_account.client_id].append(new_investment_account)
         self._save_data()
-        return new_investment_account  # Return the newly added investment account details
+        return (
+            new_investment_account  # Return the newly added investment account details
+        )
 
     def delete_investment_account(self, client_id, investment_id):
         """
@@ -98,7 +106,8 @@ class InvestmentManager:
 
         # Filter out the account to be deleted
         self.data[client_id] = [
-            investment_account for investment_account in self.data[client_id]
+            investment_account
+            for investment_account in self.data[client_id]
             if investment_account["investment_id"] != investment_id
         ]
 
@@ -121,19 +130,31 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # --- List Command ---
-    list_parser = subparsers.add_parser("list", help="List investment accounts for a client.")
+    list_parser = subparsers.add_parser(
+        "list", help="List investment accounts for a client."
+    )
     list_parser.add_argument("client_id", type=str, help="The ID of the client.")
 
     # --- Add Command ---
     add_parser = subparsers.add_parser("add", help="Add a new investment account.")
-    add_parser.add_argument("client_id", type=str, help="The ID of the client to add to.")
-    add_parser.add_argument("name", type=str, help="The name of the investment account (e.g., 'Roth IRA').")
-    add_parser.add_argument("balance", type=float, help="The initial balance of the investment account.")
+    add_parser.add_argument(
+        "client_id", type=str, help="The ID of the client to add to."
+    )
+    add_parser.add_argument(
+        "name", type=str, help="The name of the investment account (e.g., 'Roth IRA')."
+    )
+    add_parser.add_argument(
+        "balance", type=float, help="The initial balance of the investment account."
+    )
 
     # --- Delete Command ---
-    delete_parser = subparsers.add_parser("delete", help="Delete an investment account.")
+    delete_parser = subparsers.add_parser(
+        "delete", help="Delete an investment account."
+    )
     delete_parser.add_argument("client_id", type=str, help="The ID of the client.")
-    delete_parser.add_argument("investment_id", type=str, help="The ID of the investment account to delete.")
+    delete_parser.add_argument(
+        "investment_id", type=str, help="The ID of the investment account to delete."
+    )
 
     args = parser.parse_args()
 
@@ -152,9 +173,13 @@ def main():
             print(f"No investment accounts found for Client '{args.client_id}'.")
 
     elif args.command == "add":
-        new_account = manager.add_investment_account(args.client_id, args.name, args.balance)
+        new_account = manager.add_investment_account(
+            args.client_id, args.name, args.balance
+        )
         if new_account:
-            print(f"\nSuccessfully added new investment account to client '{args.client_id}':")
+            print(
+                f"\nSuccessfully added new investment account to client '{args.client_id}':"
+            )
             print(f"  ID: {new_account['investment_id']}")
             print(f"  Name: {new_account['name']}")
             print(f"  Balance: ${new_account['balance']:.2f}")
@@ -162,10 +187,13 @@ def main():
     elif args.command == "delete":
         if manager.delete_investment_account(args.client_id, args.investment_id):
             print(
-                f"\nSuccessfully deleted investment account '{args.investment_id}' for client '{args.client_id}'.")
+                f"\nSuccessfully deleted investment account '{args.investment_id}' for client '{args.client_id}'."
+            )
         else:
-            print(f"\nCould not delete investment account '{args.investment_id}' for client '{args.client_id}'. "
-                  "Check if both the client ID and investment account ID are correct.")
+            print(
+                f"\nCould not delete investment account '{args.investment_id}' for client '{args.client_id}'. "
+                "Check if both the client ID and investment account ID are correct."
+            )
     else:
         parser.print_help()
 
@@ -186,4 +214,3 @@ if __name__ == "__main__":
 # python investment_manager.py delete 123 i-0009bbfd
 # then add it back in
 # python investment_manager.py add 123 "401K" 11070.89
-

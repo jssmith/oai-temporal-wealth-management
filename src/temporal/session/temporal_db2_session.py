@@ -22,17 +22,17 @@ from src.temporal.activities.db2_session_activities import DB2SessionActivities
 class TemporalDB2Session(SessionABC):
     """
     Temporal-safe DB2 session implementation for OpenAI Agents SDK.
-    
+
     Implements the SessionABC interface but delegates all operations to
     Temporal activities. This enables conversation history persistence
     in workflows without blocking on database operations.
-    
+
     Usage:
         session = TemporalDB2Session(
             session_id="conversation_123",
             config=DB2Config(...)
         )
-        
+
         result = await Runner.run(
             agent,
             "What is the weather?",
@@ -46,11 +46,11 @@ class TemporalDB2Session(SessionABC):
         config: Optional[DB2Config] = None,
         sessions_table: str = "agent_sessions",
         messages_table: str = "agent_messages",
-        activity_timeout: timedelta = timedelta(seconds=10)
+        activity_timeout: timedelta = timedelta(seconds=10),
     ):
         """
         Initialize Temporal DB2 session.
-        
+
         Args:
             session_id: Unique identifier for this session
             config: DB2 connection configuration (DEPRECATED: pass None to let activities read from env)
@@ -59,7 +59,9 @@ class TemporalDB2Session(SessionABC):
             activity_timeout: Timeout for activity execution
         """
         self.session_id = session_id
-        self.config = config  # Will be None, activities will create config from env vars
+        self.config = (
+            config  # Will be None, activities will create config from env vars
+        )
         self.sessions_table = sessions_table
         self.messages_table = messages_table
         self.activity_timeout = activity_timeout
@@ -67,10 +69,10 @@ class TemporalDB2Session(SessionABC):
     async def get_items(self, limit: Optional[int] = None) -> List[TResponseInputItem]:
         """
         Retrieve conversation items from the session.
-        
+
         Args:
             limit: Maximum number of items to retrieve (None for all)
-            
+
         Returns:
             List of conversation items (messages)
         """
@@ -81,7 +83,7 @@ class TemporalDB2Session(SessionABC):
                 self.config,
                 limit,
                 self.sessions_table,
-                self.messages_table
+                self.messages_table,
             ],
             start_to_close_timeout=self.activity_timeout,
         )
@@ -90,13 +92,13 @@ class TemporalDB2Session(SessionABC):
     async def add_items(self, items: List[TResponseInputItem]) -> None:
         """
         Add conversation items to the session.
-        
+
         Args:
             items: List of conversation items to add
         """
         if not items:
             return
-            
+
         await workflow.execute_activity(
             DB2SessionActivities.add_items,
             args=[
@@ -104,7 +106,7 @@ class TemporalDB2Session(SessionABC):
                 self.config,
                 items,
                 self.sessions_table,
-                self.messages_table
+                self.messages_table,
             ],
             start_to_close_timeout=self.activity_timeout,
         )
@@ -112,7 +114,7 @@ class TemporalDB2Session(SessionABC):
     async def pop_item(self) -> Optional[TResponseInputItem]:
         """
         Remove and return the most recent item from the session.
-        
+
         Returns:
             The most recent conversation item, or None if session is empty
         """
@@ -122,7 +124,7 @@ class TemporalDB2Session(SessionABC):
                 self.session_id,
                 self.config,
                 self.sessions_table,
-                self.messages_table
+                self.messages_table,
             ],
             start_to_close_timeout=self.activity_timeout,
         )
@@ -136,11 +138,7 @@ class TemporalDB2Session(SessionABC):
                 self.session_id,
                 self.config,
                 self.sessions_table,
-                self.messages_table
+                self.messages_table,
             ],
             start_to_close_timeout=self.activity_timeout,
         )
-
-
-
-

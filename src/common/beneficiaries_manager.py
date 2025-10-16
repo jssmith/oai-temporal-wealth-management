@@ -7,12 +7,13 @@ from typing import List, Dict, Any
 
 # --- Configuration ---
 script_dir = os.path.dirname(__file__)
-relative_path = '../../data/beneficiaries.json'
-BENEFICIARIES_FILE =  os.path.join(script_dir, relative_path)
+relative_path = "../../data/beneficiaries.json"
+BENEFICIARIES_FILE = os.path.join(script_dir, relative_path)
 # logging.basicConfig(level=logging.INFO,
 #                     format="%(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 class BeneficiariesManager:
     """
@@ -38,10 +39,12 @@ class BeneficiariesManager:
         if not os.path.exists(self.file_path) or os.stat(self.file_path).st_size == 0:
             return {}
         try:
-            with open(self.file_path, 'r') as f:
+            with open(self.file_path, "r") as f:
                 return json.load(f)
         except json.JSONDecodeError:
-            logger.warning(f"Warning: Could not decode JSON from '{self.file_path}'. Starting with empty data.")
+            logger.warning(
+                f"Warning: Could not decode JSON from '{self.file_path}'. Starting with empty data."
+            )
             return {}
         except Exception as e:
             logger.error(f"Error loading data from '{self.file_path}': {e}")
@@ -54,7 +57,7 @@ class BeneficiariesManager:
             data (dict): The beneficiary data to save.
         """
         try:
-            with open(self.file_path, 'w') as f:
+            with open(self.file_path, "w") as f:
                 json.dump(data, f, indent=4)
         except Exception as e:
             logger.error(f"Error saving data to '{self.file_path}': {e}")
@@ -71,7 +74,9 @@ class BeneficiariesManager:
         beneficiaries = data.get(client_id, [])
         return beneficiaries
 
-    def add_beneficiary(self, client_id: str, first_name: str, last_name: str, relationship: str) -> None:
+    def add_beneficiary(
+        self, client_id: str, first_name: str, last_name: str, relationship: str
+    ) -> None:
         """
         Adds a new beneficiary to the specified client.
         Generates a unique beneficiary_id for the client.
@@ -88,23 +93,27 @@ class BeneficiariesManager:
             data[client_id] = []
 
         # Generate a unique beneficiary ID for this client
-        existing_ids = {b['beneficiary_id'] for b in data[client_id]}
+        existing_ids = {b["beneficiary_id"] for b in data[client_id]}
 
         # Use UUID for robust uniqueness, then truncate for a shorter, readable ID
         new_id = f"b-{str(uuid.uuid4())[:8]}"
-        while new_id in existing_ids:  # Ensure it's truly unique if a rare collision occurs with truncation
+        while (
+            new_id in existing_ids
+        ):  # Ensure it's truly unique if a rare collision occurs with truncation
             new_id = f"b-{str(uuid.uuid4())[:8]}"
 
         new_beneficiary = {
             "beneficiary_id": new_id,
             "first_name": first_name,
             "last_name": last_name,
-            "relationship": relationship
+            "relationship": relationship,
         }
 
         data[client_id].append(new_beneficiary)
         self._save_data(data)
-        logger.info(f"\nBeneficiary '{first_name} {last_name}' (ID: {new_id}) added to client '{client_id}'.")
+        logger.info(
+            f"\nBeneficiary '{first_name} {last_name}' (ID: {new_id}) added to client '{client_id}'."
+        )
 
     def delete_beneficiary(self, client_id: str, beneficiary_id: str) -> None:
         """
@@ -123,77 +132,81 @@ class BeneficiariesManager:
 
         # Filter out the beneficiary to be deleted
         data[client_id] = [
-            b for b in data[client_id]
-            if b['beneficiary_id'] != beneficiary_id
+            b for b in data[client_id] if b["beneficiary_id"] != beneficiary_id
         ]
 
         if len(data[client_id]) < original_count:
             self._save_data(data)
-            logger.info(f"\nBeneficiary with ID '{beneficiary_id}' deleted from client '{client_id}'.")
+            logger.info(
+                f"\nBeneficiary with ID '{beneficiary_id}' deleted from client '{client_id}'."
+            )
         else:
-            logger.error(f"\nBeneficiary with ID '{beneficiary_id}' not found in client '{client_id}'.")
+            logger.error(
+                f"\nBeneficiary with ID '{beneficiary_id}' not found in client '{client_id}'."
+            )
 
 
 # --- Command Line Interface (CLI) Setup ---
+
 
 def main():
     parser = argparse.ArgumentParser(
         description="Manage beneficiaries for different clients.",
         epilog="Example usage:\n"
-               "  python beneficiary_manager.py --list --client-id client123\n"
-               "  python beneficiary_manager.py --add --client-id client123 --first-name Jane --last-name Doe --relationship Sister\n"
-               "  python beneficiary_manager.py --delete --client-id client123 --beneficiary-id b-4f6a7d12"
+        "  python beneficiary_manager.py --list --client-id client123\n"
+        "  python beneficiary_manager.py --add --client-id client123 --first-name Jane --last-name Doe --relationship Sister\n"
+        "  python beneficiary_manager.py --delete --client-id client123 --beneficiary-id b-4f6a7d12",
     )
 
     # Global argument for client ID
     parser.add_argument(
-        '--client-id',
+        "--client-id",
         type=str,
         required=True,
-        help='The ID of the client to manage beneficiaries for.'
+        help="The ID of the client to manage beneficiaries for.",
     )
 
     # Mutually exclusive group for actions
     action_group = parser.add_mutually_exclusive_group(required=True)
 
     action_group.add_argument(
-        '--list',
-        action='store_true',
-        help='List all beneficiaries for the specified client ID.'
+        "--list",
+        action="store_true",
+        help="List all beneficiaries for the specified client ID.",
     )
     action_group.add_argument(
-        '--add',
-        action='store_true',
-        help='Add a new beneficiary to the specified client ID.'
+        "--add",
+        action="store_true",
+        help="Add a new beneficiary to the specified client ID.",
     )
     action_group.add_argument(
-        '--delete',
-        action='store_true',
-        help='Delete a beneficiary from the specified client ID using its beneficiary ID.'
+        "--delete",
+        action="store_true",
+        help="Delete a beneficiary from the specified client ID using its beneficiary ID.",
     )
 
     # Arguments for adding a beneficiary
     parser.add_argument(
-        '--first-name',
+        "--first-name",
         type=str,
-        help='First name of the beneficiary (required for --add).'
+        help="First name of the beneficiary (required for --add).",
     )
     parser.add_argument(
-        '--last-name',
+        "--last-name",
         type=str,
-        help='Last name of the beneficiary (required for --add).'
+        help="Last name of the beneficiary (required for --add).",
     )
     parser.add_argument(
-        '--relationship',
+        "--relationship",
         type=str,
-        help='Relationship of the beneficiary (e.g., "Spouse", "Child", "Friend") (required for --add).'
+        help='Relationship of the beneficiary (e.g., "Spouse", "Child", "Friend") (required for --add).',
     )
 
     # Argument for deleting a beneficiary
     parser.add_argument(
-        '--beneficiary-id',
+        "--beneficiary-id",
         type=str,
-        help='Unique ID of the beneficiary to delete (required for --delete).'
+        help="Unique ID of the beneficiary to delete (required for --delete).",
     )
 
     args = parser.parse_args()
@@ -216,8 +229,12 @@ def main():
                 print("-" * 50)
     elif args.add:
         if not all([args.first_name, args.last_name, args.relationship]):
-            parser.error("--add requires --first-name, --last-name, and --relationship.")
-        manager.add_beneficiary(args.client_id, args.first_name, args.last_name, args.relationship)
+            parser.error(
+                "--add requires --first-name, --last-name, and --relationship."
+            )
+        manager.add_beneficiary(
+            args.client_id, args.first_name, args.last_name, args.relationship
+        )
     elif args.delete:
         if not args.beneficiary_id:
             parser.error("--delete requires --beneficiary-id.")

@@ -24,17 +24,16 @@ from src.temporal.activities.beneficiaries import Beneficiaries
 from src.temporal.activities.investments import Investments
 from src.temporal.activities.db2_session_activities import DB2SessionActivities
 
-from src.temporal.workflows.supervisor_workflow import (
-    WealthManagementWorkflow
-)
-from src.temporal.workflows.open_account_workflow import (
-    OpenInvestmentAccountWorkflow
-)
+from src.temporal.workflows.supervisor_workflow import WealthManagementWorkflow
+from src.temporal.workflows.open_account_workflow import OpenInvestmentAccountWorkflow
 
 # Read force_continue_as_new from environment variable
 # Set to "true" or "1" to enable test mode for continue-as-new
-FORCE_CONTINUE_AS_NEW = os.getenv("FORCE_CONTINUE_AS_NEW", "false").lower() in ("true", "1", "yes")
-
+FORCE_CONTINUE_AS_NEW = os.getenv("FORCE_CONTINUE_AS_NEW", "false").lower() in (
+    "true",
+    "1",
+    "yes",
+)
 
 
 openai_client = AsyncOpenAI(
@@ -56,17 +55,19 @@ class CustomModelProvider(ModelProvider):
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s",
+    )
 
     client_helper = ClientHelper()
-    
+
     # Create client with plugins for workflow/activity execution
     plugins = [
         OpenAIAgentsPlugin(
             model_provider=CustomModelProvider(),
         ),
-         ClaimCheckPlugin(),
+        ClaimCheckPlugin(),
     ]
     print(f"address is {client_helper.address} and plugins are {plugins}")
     client = await Client.connect(
@@ -79,14 +80,11 @@ async def main():
     # for the demo, we're using the same task queue as
     # the agents and the child workflow. In a production
     # situation, this would likely be a different task queue
-    
+
     worker = Worker(
         client,
         task_queue=client_helper.taskQueue,
-        workflows=[
-            WealthManagementWorkflow,
-            OpenInvestmentAccountWorkflow
-        ],
+        workflows=[WealthManagementWorkflow, OpenInvestmentAccountWorkflow],
         activities=[
             Beneficiaries.list_beneficiaries,
             Beneficiaries.add_beneficiary,
@@ -109,5 +107,6 @@ async def main():
     print(f"Running worker on {client_helper.address}")
     await worker.run()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     asyncio.run(main())

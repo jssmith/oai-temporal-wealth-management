@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 
 from temporalio.service import TLSConfig
-from common.util import str_to_bool
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,6 +24,5 @@ class ClientHelper:
             with open(self.tlsKeyPath, "rb") as f:
                 key = f.read()
 
-            tls = TLSConfig(client_cert=cert,
-                            client_private_key=key)
+            tls = TLSConfig(client_cert=cert, client_private_key=key)
         return tls

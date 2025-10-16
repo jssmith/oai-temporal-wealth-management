@@ -1,9 +1,8 @@
-
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 # Beneficiary Constants
-BENE_AGENT_NAME   = "Beneficiary Agent"
-BENE_HANDOFF      = "A helpful agent that handles changes to a customers beneficiaries. It can list, add and delete beneficiaries."
+BENE_AGENT_NAME = "Beneficiary Agent"
+BENE_HANDOFF = "A helpful agent that handles changes to a customers beneficiaries. It can list, add and delete beneficiaries."
 BENE_INSTRUCTIONS = f"""{RECOMMENDED_PROMPT_PREFIX}
     You are a beneficiary agent. If you are speaking with a customer you were likely transferred from the supervisor agent.
     You are responsible for handling all aspects of beneficiaries. This includes adding, listing and deleting beneficiaries.
@@ -18,8 +17,8 @@ BENE_INSTRUCTIONS = f"""{RECOMMENDED_PROMPT_PREFIX}
     If the customer asks a question that is not related to the routine, transfer back to the supervisor agent."""
 
 # Investment Constants
-INVEST_AGENT_NAME   = "Investment Agent"
-INVEST_HANDOFF      = "A helpful agent that handles a customer's investment accounts. It can list, open and close investment accounts."
+INVEST_AGENT_NAME = "Investment Agent"
+INVEST_HANDOFF = "A helpful agent that handles a customer's investment accounts. It can list, open and close investment accounts."
 INVEST_INSTRUCTIONS = f"""{RECOMMENDED_PROMPT_PREFIX}
     You are an investment agent. If you are speaking with a customer, you were likely transferred from the supervisor agent.
     You are responsible for handling all aspects of investment accounts. This includes opening, listing and closing investment accounts.
@@ -35,8 +34,10 @@ INVEST_INSTRUCTIONS = f"""{RECOMMENDED_PROMPT_PREFIX}
     If the customer asks a question that is not related to the routine, transfer back to the supervisor agent."""
 
 # Supervisor Constants
-SUPERVISOR_AGENT_NAME   = "Supervisor Agent"
-SUPERVISOR_HANDOFF      = "A supervisor agent that can delegate customer's requests to the appropriate agent"
+SUPERVISOR_AGENT_NAME = "Supervisor Agent"
+SUPERVISOR_HANDOFF = (
+    "A supervisor agent that can delegate customer's requests to the appropriate agent"
+)
 SUPERVISOR_INSTRUCTIONS = f""""{RECOMMENDED_PROMPT_PREFIX}
         You are a helpful agent. You can use your tools to delegate questions to other appropriate agents
         # Routine

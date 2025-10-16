@@ -16,7 +16,7 @@ Environment Variables:
 Example:
     # Automatically loads from environment variables
     config = DB2Config()
-    
+
     # Or override with explicit values
     config = DB2Config(
         hostname="prod-db.example.com",
@@ -37,10 +37,11 @@ logger = logging.getLogger(__name__)
 class DB2Config:
     """
     Configuration for DB2 database connection.
-    
+
     Automatically loads connection parameters from environment variables
     when instantiated with default values. Override by passing explicit values.
     """
+
     hostname: str = "localhost"
     port: str = "50000"
     database: str = "testdb"
@@ -60,7 +61,7 @@ class DB2Config:
     def get_connection_string(self) -> str:
         """
         Build DB2 connection string for ibm_db.
-        
+
         Returns:
             Connection string in ibm_db format
         """
@@ -77,27 +78,27 @@ class DB2Config:
 def create_claim_check_table(config: DB2Config = None) -> None:
     """
     Create the claim_check_payloads table if it doesn't exist.
-    
+
     This table is used by the Temporal claim check codec to store large
     payloads outside of Temporal's history.
-    
+
     Args:
         config: DB2 configuration (uses defaults if None)
-        
+
     Raises:
         ConnectionError: If unable to connect to DB2
         Exception: If table creation fails
     """
     db2_config = config or DB2Config()
     conn = None
-    
+
     try:
         conn_str = db2_config.get_connection_string()
         conn = ibm_db.connect(conn_str, "", "")
-        
+
         if not conn:
             raise ConnectionError("Failed to establish DB2 connection")
-        
+
         # Create claim check payloads table
         create_table_sql = """
             CREATE TABLE IF NOT EXISTS claim_check_payloads (
@@ -110,7 +111,7 @@ def create_claim_check_table(config: DB2Config = None) -> None:
             )
         """
         ibm_db.exec_immediate(conn, create_table_sql)
-        
+
         # Create index for workflow cleanup
         create_index_workflow_sql = """
             CREATE INDEX IF NOT EXISTS idx_workflow_cleanup 
@@ -121,7 +122,7 @@ def create_claim_check_table(config: DB2Config = None) -> None:
         except Exception as e:
             # Index might already exist, log but don't fail
             logger.debug(f"Index creation skipped (may already exist): {e}")
-        
+
         # Create index for expiration cleanup
         create_index_expires_sql = """
             CREATE INDEX IF NOT EXISTS idx_expires_at 
@@ -132,17 +133,16 @@ def create_claim_check_table(config: DB2Config = None) -> None:
         except Exception as e:
             # Index might already exist, log but don't fail
             logger.debug(f"Index creation skipped (may already exist): {e}")
-        
+
         ibm_db.commit(conn)
         logger.info("Claim check table initialized successfully")
-        
+
     except Exception as e:
         logger.error(f"Failed to create claim check table: {e}")
         if conn:
             ibm_db.rollback(conn)
         raise
-        
+
     finally:
         if conn:
             ibm_db.close(conn)
-

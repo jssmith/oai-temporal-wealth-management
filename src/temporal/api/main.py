@@ -1,9 +1,8 @@
 from contextlib import asynccontextmanager
 from typing import Optional, AsyncGenerator
-import os
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from temporalio.client import Client
 from temporalio.common import WorkflowIDReusePolicy
@@ -12,6 +11,7 @@ from temporalio.contrib.openai_agents import OpenAIAgentsPlugin
 from temporalio.service import RPCError
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
@@ -24,6 +24,7 @@ from src.temporal.workflows.supervisor_workflow import WealthManagementWorkflow
 
 temporal_client: Optional[Client] = None
 task_queue: Optional[str] = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -40,11 +41,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         plugins=[
             OpenAIAgentsPlugin(),
             ClaimCheckPlugin(),
-        ]
+        ],
     )
     yield
     print("API is shutting down...")
     # app teardown
+
+
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
@@ -55,27 +58,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return {"message": "OpenAI Agent SDK + Temporal Agent!"}
+
 
 @app.post("/send-prompt")
 async def send_prompt(workflow_id: str, prompt: str):
     print(f"Received prompt {prompt}")
 
     message = ProcessUserMessageInput(
-        user_input = prompt,
+        user_input=prompt,
     )
 
     try:
         handle = temporal_client.get_workflow_handle(workflow_id=workflow_id)
         # Use update instead of signal to get immediate response
         result = await handle.execute_update(
-            WealthManagementWorkflow.process_user_message,
-            args=[message]
+            WealthManagementWorkflow.process_user_message, args=[message]
         )
         print(f"Received response: {result}")
-        
+
         # Return the chat interaction directly
         return {
             "success": result.success,
@@ -83,9 +87,9 @@ async def send_prompt(workflow_id: str, prompt: str):
                 "user_prompt": result.chat_interaction.user_prompt,
                 "text_response": result.chat_interaction.text_response,
                 "json_response": result.chat_interaction.json_response,
-                "agent_trace": result.chat_interaction.agent_trace
+                "agent_trace": result.chat_interaction.agent_trace,
             },
-            "error_message": result.error_message
+            "error_message": result.error_message,
         }
     except RPCError as e:
         print(f"RPC Error: {e}")
@@ -96,8 +100,8 @@ async def send_prompt(workflow_id: str, prompt: str):
                 "user_prompt": prompt,
                 "text_response": "Sorry, there was an error processing your request.",
                 "json_response": "",
-                "agent_trace": f"RPC Error: {e}"
-            }
+                "agent_trace": f"RPC Error: {e}",
+            },
         }
     except Exception as e:
         print(f"Unexpected error: {e}")
@@ -108,8 +112,8 @@ async def send_prompt(workflow_id: str, prompt: str):
                 "user_prompt": prompt,
                 "text_response": "Sorry, there was an unexpected error.",
                 "json_response": "",
-                "agent_trace": f"Error: {e}"
-            }
+                "agent_trace": f"Error: {e}",
+            },
         }
 
 
@@ -122,20 +126,22 @@ async def end_chat(workflow_id: str):
         return {"message": "End chat signal sent."}
     except TemporalError as e:
         logger.error(f"Error sending end chat signal: {e}")
-        #print(e)
+        # print(e)
         # Workflow not found; return an empty response
         return {}
 
+
 UPDATE_STATUS_NAME = "update_status"
+
 
 @app.post("/start-workflow")
 async def start_workflow(workflow_id: str):
     """
     Start a new workflow.
-    
+
     Args:
         workflow_id: Unique identifier for the workflow
-    
+
     """
     logger.info(f"Starting workflow {workflow_id}")
     print(f"Starting workflow {workflow_id}")
@@ -148,16 +154,12 @@ async def start_workflow(workflow_id: str):
             args=[None, None],  # current_agent_name=None, context=None
             id=workflow_id,
             task_queue=task_queue,
-            id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE
+            id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE,
         )
         logger.info(f"Workflow completed {workflow_id}")
         print(f"Workflow completed {workflow_id}")
-        return {
-            "message": f"Workflow started."
-        }
+        return {"message": "Workflow started."}
     except Exception as e:
         print(e)
-        #logger.error("Exception occurred starting workflow", exc_info=True)
-        return {
-            "message": "An error occurred starting the workflow"
-        }
+        # logger.error("Exception occurred starting workflow", exc_info=True)
+        return {"message": "An error occurred starting the workflow"}

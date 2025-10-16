@@ -213,7 +213,7 @@ class ClaimCheckCodec(PayloadCodec):
 
         out = Payload(
             metadata={
-                "encoding": b"claim-checked",
+                "encoding": b"text/plain",  # Standard Temporal encoding field
                 "temporal.io/claim-check-codec": codec_version.encode("utf-8"),
             },
             data=payload_id.encode("utf-8"),

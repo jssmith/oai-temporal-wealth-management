@@ -9,22 +9,29 @@ from common.client_helper import ClientHelper
 load_dotenv()
 
 from src.temporal.claim_check.claim_check_plugin import ClaimCheckPlugin
-from src.temporal.workflows.open_account_workflow import OpenInvestmentAccountWorkflow, OpenInvestmentAccountInput
+from src.temporal.workflows.open_account_workflow import (
+    OpenInvestmentAccountWorkflow,
+    OpenInvestmentAccountInput,
+)
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s",
+    )
 
     client_helper = ClientHelper()
     print(f"address is {client_helper.address}")
-    client = await Client.connect(target_host=client_helper.address,
-                                  namespace=client_helper.namespace,
-                                  tls=client_helper.get_tls_config(),
-                                  plugins=[
-                                      # OpenAIAgentsPlugin(),
-                                      ClaimCheckPlugin()
-                                  ])
+    client = await Client.connect(
+        target_host=client_helper.address,
+        namespace=client_helper.namespace,
+        tls=client_helper.get_tls_config(),
+        plugins=[
+            # OpenAIAgentsPlugin(),
+            ClaimCheckPlugin()
+        ],
+    )
     print("Running the first scenario:")
     await scenario1(client, client_helper)
     print("Running the second scenario:")
@@ -32,11 +39,11 @@ async def main():
     print("Running the third scenario:")
     await scenario3(client, client_helper)
 
-async def scenario1(client : Client, client_helper: ClientHelper):
+
+async def scenario1(client: Client, client_helper: ClientHelper):
     new_investment = OpenInvestmentAccountInput(
-        client_id="123",
-        account_name="Vacation",
-        initial_amount=150.78)
+        client_id="123", account_name="Vacation", initial_amount=150.78
+    )
 
     # for the demo, we're using the same task queue as
     # the agents. In a production situation, this
@@ -45,7 +52,8 @@ async def scenario1(client : Client, client_helper: ClientHelper):
         OpenInvestmentAccountWorkflow.run,
         args=[new_investment],
         id="testing-open-investment-account-workflow",
-        task_queue=client_helper.taskQueue)
+        task_queue=client_helper.taskQueue,
+    )
 
     the_state = await handle.query(OpenInvestmentAccountWorkflow.get_current_state)
     print(f"The current state is {the_state}")
@@ -77,11 +85,11 @@ async def scenario1(client : Client, client_helper: ClientHelper):
     result = await handle.result()
     print(f"The result from the workflow execution is {result}")
 
-async def scenario2(client : Client, client_helper: ClientHelper):
+
+async def scenario2(client: Client, client_helper: ClientHelper):
     new_investment = OpenInvestmentAccountInput(
-        client_id="123",
-        account_name="Vacation2",
-        initial_amount=350.72)
+        client_id="123", account_name="Vacation2", initial_amount=350.72
+    )
 
     # for the demo, we're using the same task queue as
     # the agents. In a production situation, this
@@ -90,7 +98,8 @@ async def scenario2(client : Client, client_helper: ClientHelper):
         OpenInvestmentAccountWorkflow.run,
         args=[new_investment],
         id="testing-open-investment-account-workflow-2",
-        task_queue=client_helper.taskQueue)
+        task_queue=client_helper.taskQueue,
+    )
 
     the_state = await handle.query(OpenInvestmentAccountWorkflow.get_current_state)
     print(f"The current state is {the_state}")
@@ -102,12 +111,16 @@ async def scenario2(client : Client, client_helper: ClientHelper):
     print(f"After sleeping, the current state is {the_state}")
 
     # get the current customer info
-    customer_details = await handle.execute_update(OpenInvestmentAccountWorkflow.get_client_details)
+    customer_details = await handle.execute_update(
+        OpenInvestmentAccountWorkflow.get_client_details
+    )
     print(f"Customer details are {customer_details}")
 
     # now update customer details
-    changed_dict = { "last_name": "Doenut" }
-    result = await handle.execute_update(OpenInvestmentAccountWorkflow.update_client_details, changed_dict)
+    changed_dict = {"last_name": "Doenut"}
+    result = await handle.execute_update(
+        OpenInvestmentAccountWorkflow.update_client_details, changed_dict
+    )
     print(f"The result from updating client details is {result}")
 
     # after this KYC is verified
@@ -131,11 +144,11 @@ async def scenario2(client : Client, client_helper: ClientHelper):
     result = await handle.result()
     print(f"The result from the second scenario is {result}")
 
-async def scenario3(client : Client, client_helper: ClientHelper):
+
+async def scenario3(client: Client, client_helper: ClientHelper):
     new_investment = OpenInvestmentAccountInput(
-        client_id="123",
-        account_name="Vacation3",
-        initial_amount=176.73)
+        client_id="123", account_name="Vacation3", initial_amount=176.73
+    )
 
     # for the demo, we're using the same task queue as
     # the agents. In a production situation, this
@@ -145,7 +158,8 @@ async def scenario3(client : Client, client_helper: ClientHelper):
         OpenInvestmentAccountWorkflow.run,
         args=[new_investment],
         id=workflow_id,
-        task_queue=client_helper.taskQueue)
+        task_queue=client_helper.taskQueue,
+    )
 
     the_state = await handle.query(OpenInvestmentAccountWorkflow.get_current_state)
     print(f"The current state is {the_state}")
@@ -177,6 +191,7 @@ async def scenario3(client : Client, client_helper: ClientHelper):
     # get the result
     result = await handle.result()
     print(f"The result from the workflow execution is {result}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,11 +1,15 @@
 from functools import partial
 from typing import Awaitable, Callable, Iterable, List
+import os
 
 from aiohttp import hdrs, web
 from google.protobuf import json_format
 from temporalio.api.common.v1 import Payload, Payloads
 
 from src.temporal.claim_check.claim_check_codec import ClaimCheckCodec
+from src.common.db2_config import DB2Config
+from common.util import str_to_bool
+
 
 def build_codec_server() -> web.Application:
     # Cors handler
@@ -41,8 +45,18 @@ def build_codec_server() -> web.Application:
 
         return resp
 
-    # Build app
-    codec = ClaimCheckCodec()
+    # Build app with same configuration as the plugin
+    db2_config = DB2Config()
+    ttl_hours = int(os.getenv("CLAIM_CHECK_TTL_HOURS", "1440"))
+    enable_compression = str_to_bool(os.getenv("CLAIM_CHECK_COMPRESSION", "True"))
+    compression_threshold = int(os.getenv("CLAIM_CHECK_COMPRESSION_THRESHOLD", "250"))
+
+    codec = ClaimCheckCodec(
+        config=db2_config,
+        ttl_hours=ttl_hours,
+        enable_compression=enable_compression,
+        compression_threshold=compression_threshold,
+    )
     app = web.Application()
     app.add_routes(
         [

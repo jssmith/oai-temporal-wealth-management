@@ -3,14 +3,18 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+
 class ProcessUserMessageInput(BaseModel):
     user_input: str
 
+
 class ProcessUserMessageResponse(BaseModel):
     """Response from processing a user message via update"""
+
     chat_interaction: "ChatInteraction"
     success: bool
     error_message: Optional[str] = None
+
 
 @dataclass
 class ChatInteraction:
