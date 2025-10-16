@@ -1,5 +1,6 @@
 import uuid
 import base64
+import gzip
 import logging
 import ibm_db
 from typing import Iterable, List, Optional
@@ -13,26 +14,36 @@ from src.common.db2_config import DB2Config, create_claim_check_table
 
 logger = logging.getLogger(__name__)
 
+
 #
 # Substitutes the payload for a GUID
 # and stores the original payload in DB2 using ibm_db
 # Supports workflow-based cleanup when workflows complete
 #
 class ClaimCheckCodec(PayloadCodec):
-
-    def __init__(self, config: Optional[DB2Config] = None, ttl_hours: int = 24):
+    def __init__(
+        self,
+        config: Optional[DB2Config] = None,
+        ttl_hours: int = 1440,  # 60 days default
+        enable_compression: bool = True,
+        compression_threshold: int = 250,
+    ):
         """
         Initialize ClaimCheckCodec with DB2 storage.
-        
+
         Args:
             config: DB2 configuration (uses defaults if None)
-            ttl_hours: Time-to-live for payloads in hours (default 24)
+            ttl_hours: Time-to-live for payloads in hours (default 1440 = 60 days)
+            enable_compression: Enable gzip compression for payloads (default True)
+            compression_threshold: Minimum payload size in bytes to compress (default 250)
         """
         self.config = config or DB2Config()
         self.ttl_hours = ttl_hours
+        self.enable_compression = enable_compression
+        self.compression_threshold = compression_threshold
         self._connection = None
         self._initialized = False
-        
+
     def _get_connection(self):
         """Get or create DB2 connection."""
         if self._connection is None:
@@ -41,19 +52,20 @@ class ClaimCheckCodec(PayloadCodec):
                 self._connection = ibm_db.connect(conn_str, "", "")
                 if not self._connection:
                     raise ConnectionError("Failed to establish DB2 connection")
-                
+
                 # Initialize database schema on first connection
                 if not self._initialized:
                     create_claim_check_table(self.config)
                     self._initialized = True
-                    
+
                 logger.debug("Established DB2 connection for claim check codec")
-                
+
             except Exception as e:
                 logger.error(f"Failed to connect to DB2: {e}")
                 raise ConnectionError(f"DB2 connection failed: {e}")
-                
+
         return self._connection
+
     async def encode(self, payloads: Iterable[Payload]) -> List[Payload]:
         out: list[Payload] = []
         for p in payloads:
@@ -65,14 +77,19 @@ class ClaimCheckCodec(PayloadCodec):
     async def decode(self, payloads: Iterable[Payload]) -> List[Payload]:
         out: List[Payload] = []
         for p in payloads:
-            if p.metadata.get("temporal.io/claim-check-codec", b"").decode() != "v1":
+            codec_version = p.metadata.get(
+                "temporal.io/claim-check-codec", b""
+            ).decode()
+            if codec_version not in ("v1", "v1c"):
                 out.append(p)
                 continue
 
             payload_id = p.data.decode("utf-8")
+            is_compressed = codec_version == "v1c"
+
             try:
                 conn = self._get_connection()
-                
+
                 # Query for the claim check payload
                 query_sql = """
                     SELECT payload_data 
@@ -82,31 +99,71 @@ class ClaimCheckCodec(PayloadCodec):
                 stmt = ibm_db.prepare(conn, query_sql)
                 ibm_db.bind_param(stmt, 1, payload_id)
                 ibm_db.execute(stmt)
-                
+
                 result = ibm_db.fetch_tuple(stmt)
-                
+
                 if result:
                     # Decode the base64 encoded payload data
                     payload_data = result[0]
                     payload_bytes = base64.b64decode(payload_data)
+
+                    # Decompress if needed
+                    if is_compressed:
+                        decompressed_size = len(payload_bytes)
+                        payload_bytes = gzip.decompress(payload_bytes)
+                        original_size = len(payload_bytes)
+                        logger.info(
+                            f"Claim check decode: {payload_id} was compressed: "
+                            f"{decompressed_size} -> {original_size} bytes"
+                        )
+
                     new_payload = Payload.FromString(payload_bytes)
                     out.append(new_payload)
                 else:
                     logger.error(f"Claim check payload not found: {payload_id}")
                     # Return original payload if not found
                     out.append(p)
-                    
+
             except Exception as e:
                 logger.error(f"Failed to decode claim check payload {payload_id}: {e}")
                 # Return original payload on error
                 out.append(p)
-                
+
         return out
 
     async def encode_payload(self, payload: Payload) -> Payload:
         payload_id = str(uuid.uuid4())
         payload_bytes = payload.SerializeToString()
-        
+        original_size = len(payload_bytes)
+
+        # Determine if we should compress
+        should_compress = (
+            self.enable_compression and original_size > self.compression_threshold
+        )
+
+        # Compress if enabled and above threshold
+        codec_version = "v1"
+        data_to_store = payload_bytes
+
+        if should_compress:
+            compressed_bytes = gzip.compress(payload_bytes)
+            compressed_size = len(compressed_bytes)
+
+            # Only use compression if it actually reduces size
+            if compressed_size < original_size:
+                data_to_store = compressed_bytes
+                codec_version = "v1c"
+                compression_ratio = (1 - compressed_size / original_size) * 100
+                logger.info(
+                    f"Claim check encode: {payload_id} compression: "
+                    f"{original_size} -> {compressed_size} bytes ({compression_ratio:.1f}% reduction)"
+                )
+            else:
+                logger.debug(
+                    f"Claim check encode: {payload_id} compression skipped "
+                    f"(no size reduction: {original_size} -> {compressed_size} bytes)"
+                )
+
         # Get workflow context for tracking
         workflow_id = None
         workflow_run_id = None
@@ -118,17 +175,17 @@ class ClaimCheckCodec(PayloadCodec):
         except Exception:
             # Not in workflow context, that's okay
             pass
-        
+
         # Calculate expiration time
         expires_at = datetime.utcnow() + timedelta(hours=self.ttl_hours)
-        expires_at_str = expires_at.strftime('%Y-%m-%d %H:%M:%S')
-        
+        expires_at_str = expires_at.strftime("%Y-%m-%d %H:%M:%S")
+
         try:
             conn = self._get_connection()
-            
-            # Base64 encode the payload data for storage
-            encoded_data = base64.b64encode(payload_bytes).decode('utf-8')
-            
+
+            # Base64 encode the payload data (compressed or not) for storage
+            encoded_data = base64.b64encode(data_to_store).decode("utf-8")
+
             # Insert claim check payload
             insert_sql = """
                 INSERT INTO claim_check_payloads 
@@ -143,35 +200,39 @@ class ClaimCheckCodec(PayloadCodec):
             ibm_db.bind_param(stmt, 5, expires_at_str)
             ibm_db.execute(stmt)
             ibm_db.commit(conn)
-            
-            logger.debug(f"Stored claim check payload {payload_id} for workflow {workflow_id}")
-            
+
+            logger.debug(
+                f"Stored claim check payload {payload_id} for workflow {workflow_id}"
+            )
+
         except Exception as e:
             logger.error(f"Failed to store claim check payload {payload_id}: {e}")
             if conn:
                 ibm_db.rollback(conn)
             raise
-        
+
         out = Payload(
             metadata={
                 "encoding": b"claim-checked",
-                "temporal.io/claim-check-codec": b"v1",
+                "temporal.io/claim-check-codec": codec_version.encode("utf-8"),
             },
             data=payload_id.encode("utf-8"),
         )
         return out
-    
-    async def cleanup_workflow_payloads(self, workflow_id: str, workflow_run_id: Optional[str] = None):
+
+    async def cleanup_workflow_payloads(
+        self, workflow_id: str, workflow_run_id: Optional[str] = None
+    ):
         """
         Clean up claim check payloads for a completed workflow.
-        
+
         Args:
             workflow_id: The workflow ID to clean up
             workflow_run_id: Optional workflow run ID for more specific cleanup
         """
         try:
             conn = self._get_connection()
-            
+
             if workflow_run_id:
                 delete_sql = """
                     DELETE FROM claim_check_payloads 
@@ -187,26 +248,28 @@ class ClaimCheckCodec(PayloadCodec):
                 """
                 stmt = ibm_db.prepare(conn, delete_sql)
                 ibm_db.bind_param(stmt, 1, workflow_id)
-            
+
             ibm_db.execute(stmt)
             deleted_count = ibm_db.num_rows(stmt)
             ibm_db.commit(conn)
-            
-            logger.info(f"Cleaned up {deleted_count} claim check payloads for workflow {workflow_id}")
-            
+
+            logger.info(
+                f"Cleaned up {deleted_count} claim check payloads for workflow {workflow_id}"
+            )
+
         except Exception as e:
             logger.error(f"Failed to cleanup payloads for workflow {workflow_id}: {e}")
             if conn:
                 ibm_db.rollback(conn)
-    
+
     async def cleanup_expired_payloads(self):
         """Clean up expired claim check payloads."""
         try:
             conn = self._get_connection()
-            
+
             now = datetime.utcnow()
-            now_str = now.strftime('%Y-%m-%d %H:%M:%S')
-            
+            now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
             delete_sql = """
                 DELETE FROM claim_check_payloads 
                 WHERE expires_at < ?
@@ -216,14 +279,14 @@ class ClaimCheckCodec(PayloadCodec):
             ibm_db.execute(stmt)
             deleted_count = ibm_db.num_rows(stmt)
             ibm_db.commit(conn)
-            
+
             logger.info(f"Cleaned up {deleted_count} expired claim check payloads")
-            
+
         except Exception as e:
             logger.error(f"Failed to cleanup expired payloads: {e}")
             if conn:
                 ibm_db.rollback(conn)
-    
+
     def close(self):
         """Close database connections."""
         try:
